@@ -1,5 +1,5 @@
 name = "mcp"
-description = "mcp is"
+description = "Ada types and JSON converters for the Model Context Protocol"
 version = "0.1.0-dev"
 
 authors = ["Max Reznik"]
@@ -15,6 +15,9 @@ development.optimization = ["-O0"]
 development.style_checks = ["-gnaty", "-gnaty-B"]
 development.contracts = "Yes"
 "*".debug_info = "Yes"
+
+[[depends-on]]
+vss_extra = "^26.2"
 
 [[actions]]
 type = "test"

@@ -1,0 +1,122 @@
+--- a/tools/json_schema/json_schema-writers.adb
++++ b/tools/json_schema/json_schema-writers.adb
+@@ -679,9 +679,13 @@
+          Result := "Any_Object";  --  TODO: Make more precise type???
+       elsif Schema.Kind.Last_Index = 7 then
+          Result := "Any_Value";
+-      elsif Schema.Kind = Integer_Or_String then
++      elsif Schema.Kind = Integer_Or_String
++        or else Schema.Kind = [Definitions.A_String, Definitions.An_Integer]
++      then
+          Result.Append ("Integer_Or_String");
+-      elsif Schema.Kind = String_Or_Null then
++      elsif Schema.Kind = String_Or_Null
++        or else Schema.Kind = [Definitions.A_Null, Definitions.A_String]
++      then
+          --  To represent `null` (and an absent value) it uses Is_Null
+          --  function, so there is no Optional_ variant.
+          Result := "Virtual_String";
+@@ -737,7 +741,19 @@
+                     Resolve_Alias (Map, Schema.Items.First_Element);
+                begin
+                   --  TODO: Optional vectors???
+-                  if not Item.Ref.Is_Empty
++                  if Item.Ref.Is_Empty
++                    and then not Is_Enum (Item)
++                    and then
++                      (Item.Kind.Last_Index /= 1
++                       or else Item.Kind.First_Element in
++                         Definitions.A_Null | Definitions.An_Array
++                           | Definitions.An_Object)
++                  then
++                     --  Anonymous complex elements have no dedicated Ada
++                     --  type. Preserve the complete array as JSON events.
++                     Result := "Any_Value";
++
++                  elsif not Item.Ref.Is_Empty
+                     and then Map.Contains (Item.Ref)
+                     and then Is_Untyped_Object (Map (Item.Ref))
+                   then
+--- a/tools/json_schema/json_schema-writers-types.adb
++++ b/tools/json_schema/json_schema-writers-types.adb
+@@ -415,6 +415,14 @@
+             Property.Schema.Required.Contains (Item.Name),
+             False);
+       end loop;
++
++      if Keep_Extra and then
++        (Property.Schema.Additional_Properties = null or else
++           not Property.Schema.Additional_Properties.Is_False)
++      then
++         Put ("Additional_Properties : Any_Object;");
++         New_Line;
++      end if;
+ 
+       Put ("end record;");
+       New_Line;
+--- a/tools/json_schema/json_schema-writers-outputs.adb
++++ b/tools/json_schema/json_schema-writers-outputs.adb
+@@ -19,7 +19,8 @@
+       Property       : JSON_Schema.Property;
+       Map            : JSON_Schema.Readers.Schema_Map;
+       Enum_Package   : VSS.Strings.Virtual_String;
+-      Holders        : VSS.String_Vectors.Virtual_String_Vector);
++      Holders        : VSS.String_Vectors.Virtual_String_Vector;
++      Keep_Extra     : Boolean);
+ 
+    procedure Write_Output_Specification
+      (Type_Name : VSS.Strings.Virtual_String;
+@@ -201,6 +202,8 @@
+       Put (".Outputs is");
+       New_Line;
+       Put ("pragma Style_Checks (Off);");
++      New_Line;
++      Put ("use type Integer_64;");
+       New_Line;
+ 
+       Put ("procedure Output_Any_Value"); New_Line;
+@@ -269,7 +272,8 @@
+       Property       : JSON_Schema.Property;
+       Map            : JSON_Schema.Readers.Schema_Map;
+       Enum_Package   : VSS.Strings.Virtual_String;
+-      Holders        : VSS.String_Vectors.Virtual_String_Vector)
++      Holders        : VSS.String_Vectors.Virtual_String_Vector;
++      Keep_Extra     : Boolean)
+    is
+       use type VSS.Strings.Virtual_String;
+ 
+@@ -289,7 +293,7 @@
+       procedure On_Anonymous_Schema (Property : JSON_Schema.Property) is
+       begin
+          Write_Anonymous_Type
+-           (Enclosing_Type, Property, Map, Enum_Package, Holders);
++           (Enclosing_Type, Property, Map, Enum_Package, Holders, Keep_Extra);
+       end On_Anonymous_Schema;
+ 
+       -----------------
+@@ -339,6 +343,15 @@
+                Schema.Required.Contains (Property.Name),
+                Holders);
+          end loop;
++
++         if Keep_Extra and then
++           (Schema.Additional_Properties = null or else
++              not Schema.Additional_Properties.Is_False)
++         then
++            Put ("Output_Any_Value (Handler, Value.Additional_Properties);");
++            New_Line;
++         end if;
++
+          Put ("Handler.End_Object;");
+          New_Line;
+       else
+@@ -390,7 +403,8 @@
+ 
+       procedure On_Anonymous_Schema (Property : JSON_Schema.Property) is
+       begin
+-         Write_Anonymous_Type (Name, Property, Map, Enum_Package, Holders);
++         Write_Anonymous_Type
++           (Name, Property, Map, Enum_Package, Holders, Keep_Extra);
+       end On_Anonymous_Schema;
+ 
+       -----------------

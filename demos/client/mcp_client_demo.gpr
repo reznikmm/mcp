@@ -1,0 +1,24 @@
+--  SPDX-FileCopyrightText: 2026 Max Reznik <reznikmm@gmail.com>
+--
+--  SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+------------------------------------------------------------------
+
+with "config/mcp_client_demo_config.gpr";
+
+project MCP_Client_Demo is
+
+   for Source_Dirs use ("source", "../common", "config");
+   for Object_Dir use ".obj/" & MCP_Client_Demo_Config.Build_Profile;
+   for Exec_Dir use "bin";
+   for Main use ("mcp_client_demo.adb");
+   for Create_Missing_Dirs use "True";
+
+   package Compiler is
+      for Default_Switches ("Ada") use MCP_Client_Demo_Config.Ada_Compiler_Switches;
+   end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");
+   end Binder;
+
+end MCP_Client_Demo;

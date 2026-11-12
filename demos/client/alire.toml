@@ -1,0 +1,31 @@
+##  SPDX-FileCopyrightText: 2026 Max Reznik <reznikmm@gmail.com>
+##
+##  SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+##################################################################
+
+name = "mcp_client_demo"
+description = "MCP stdio client using generated Ada types"
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+executables = ["mcp_client_demo"]
+
+[build-switches]
+"*".Ada_Version = "Ada2022"
+development.style_checks = ["-gnaty", "-gnaty-B"]
+
+[build-profiles]
+mcp = "development"
+
+[[depends-on]]
+mcp = "*"
+
+[[pins]]
+mcp = { path = "../.." }
+
+[[actions]]
+type = "test"
+command = ["python3", "test_client.py"]
+
+[[actions]]
+type = "test"
+command = ["bash", "test_launcher.sh"]

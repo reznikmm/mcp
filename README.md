@@ -4,30 +4,28 @@ MCP
 [![Build with Alire](https://github.com/reznikmm/mcp/actions/workflows/alire.yml/badge.svg)](https://github.com/reznikmm/mcp/actions/workflows/alire.yml)
 [![REUSE status](https://api.reuse.software/badge/github.com/reznikmm/mcp)](https://api.reuse.software/info/github.com/reznikmm/mcp)
 
-Ada project mcp packaged as an Alire crate.
+Ada 2022 types and JSON converters for the Model Context Protocol (MCP),
+packaged as an Alire library crate.
 
 ## What Is Included
 
-This repository is a minimal starting point for an Ada 2022 library project with:
+The binding is generated from the supplied `schema/schema.json`:
 
-- a library crate in the repository root
-- a separate testsuite crate in `testsuite/`
-- CI workflows for build/test (`alire.yml`) and REUSE compliance (`reuse.yml`)
-- SPDX and [REUSE](https://reuse.software/) metadata (`REUSE.toml`, `LICENSES/`)
-- helper script `rename.sh` to rename mcp identifiers in copied projects
+- `MCP.Types`: records, optional values, enumerations, unions and vectors
+- `MCP.Types.Inputs`: `Input_<Type>` procedures using VSS JSON pull readers
+- `MCP.Types.Outputs`: `Output_<Type>` procedures using VSS JSON content handlers
 
-Key directories and files:
-
-- `source/` - library units (`MCP` package)
-- `mcp.gpr` - root GPR project file for the library
-- `alire.toml` - root crate metadata and test action
-- `testsuite/` - separate Alire crate for tests
-- `AGENTS.md` - repository-specific instructions for coding agents
+`MCP.Key_Lookups` supplies key lookup for the generated readers. The library
+provides the data binding layer for clients and servers; the separate demos
+implement a stdio exchange using that layer. See [schema/README.md](schema/README.md)
+for regeneration, generator fixes and current mapping limitations.
 
 ## Requirements
 
 - [Alire](https://alire.ada.dev/)
-- GNAT toolchain compatible with Ada 2022
+- GNAT toolchain compatible with Ada 2022 (tested with GNAT 16.1.0)
+- To run the demos together: Bash, GNU `timeout`, `mkfifo` and `mktemp`
+- To run the demo integration test suites: Python 3
 
 ## Build And Test
 
@@ -44,14 +42,45 @@ Run testsuite crate directly:
 alr -C testsuite run
 ```
 
-## Using This MCP
+## Using the Binding
 
-1. Create a new repository from this mcp.
-2. Run `./rename.sh <your_project_name>` to rename `mcp`/`MCP`/`MCP` identifiers.
-3. Adjust crate metadata in `alire.toml`.
-4. Replace `source/mcp.ads` with your actual library units.
+Add `with "mcp";` to your GPR project and import the generated packages.
+For a VSS reader positioned on the first JSON value:
 
-Use `./rename.sh --dry-run <your_project_name>` to preview changes.
+```ada
+declare
+   Value   : MCP.Types.ClientRequest;
+   Success : Boolean := True;
+begin
+   MCP.Types.Inputs.Input_ClientRequest (Reader, Value, Success);
+   if Success then
+      MCP.Types.Outputs.Output_ClientRequest (Writer, Value);
+   end if;
+end;
+```
+
+The caller handles document boundaries and checks reader/writer errors.
+The [JSON tests](testsuite/src/test_json.adb) show complete in-memory examples.
+
+## Stdio Demos
+
+The [server](demos/server/README.md) and [client](demos/client/README.md)
+demos show both sides of the generated binding. The server provides an echo
+tool; the Ada client discovers the server, lists tools, calls echo, and checks
+its response. Both use the shared stdio stream adapted from Ada Language Server.
+
+```sh
+alr -C demos/server build
+alr -C demos/client build
+./demos/client/run.sh "Привіт з Ada!"
+alr -C demos/server test
+alr -C demos/client test
+```
+
+The Bash launcher connects the two Ada executables using FIFOs, checks their
+exit statuses, and cleans up processes and temporary files on failure or timeout.
+The protocol exchange runs in Ada. See [demos/README.md](demos/README.md) for
+the source layout and transport setup.
 
 ## Maintainer
 
@@ -59,5 +88,6 @@ Use `./rename.sh --dry-run <your_project_name>` to preview changes.
 
 ## License
 
-Licensed under Apache-2.0 WITH LLVM-exception. See `LICENSES/` and `REUSE.toml`.
+The library is licensed under Apache-2.0 WITH LLVM-exception.
+See `LICENSES/` and `REUSE.toml`.
 
